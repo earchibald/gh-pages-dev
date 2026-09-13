@@ -1,6 +1,19 @@
 {
     "versions": [
         {
+            "version": "0.7.0.m4",
+            "requiredVersion": "0.6.1",
+            "phase": "beta",
+            "final": true,
+            "released": "2026-09-13",
+            "changes": [
+                {
+                    "type": "UI",
+                    "summary": "Auto-scavenge also stops when the bag is full, instead of turning every find into a leave-something-behind popup"
+                }
+            ]
+        },
+        {
             "version": "0.7.0.m3",
             "requiredVersion": "0.6.1",
             "phase": "beta",

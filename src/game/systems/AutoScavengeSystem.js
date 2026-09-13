@@ -72,6 +72,12 @@ define([
 				return;
 			}
 
+			// a full bag would turn every find into a leave-something-behind popup
+			if (this.isBagFull()) {
+				this.stop("Auto-scavenge stopped: the bag is full.");
+				return;
+			}
+
 			if (GameGlobals.uiFunctions.popupManager.hasOpenPopup()) return;
 			if (GameGlobals.playerHelper.isBusy()) return;
 			if (GameGlobals.playerActionFunctions.currentAction) return;
@@ -115,6 +121,15 @@ define([
 			if (GameGlobals.sectorHelper.getLocationKnownResources(sector).length > 0) return false;
 			if (status.getScavengedPercent() < ExplorationConstants.THRESHOLD_SCAVENGED_PERCENT_REVEAL_NO_RESOURCES) return false;
 			return features.resourcesScavengable.getTotal() <= 0;
+		},
+
+		// BagSystem keeps usedCapacity current every tick
+		isBagFull: function () {
+			let nodes = GameGlobals.playerHelper.playerResourcesNodes;
+			if (!nodes || !nodes.head) return false;
+			let bag = nodes.head.bag;
+			if (!bag || !bag.totalCapacity) return false;
+			return bag.usedCapacity >= bag.totalCapacity;
 		},
 
 		toggle: function () {

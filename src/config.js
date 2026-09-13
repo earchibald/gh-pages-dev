@@ -34,6 +34,6 @@ require.config({
 		}
 	},
 	
-	urlArgs: "v=0.7.0.m3",
+	urlArgs: "v=0.7.0.m4",
 
 });
