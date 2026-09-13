@@ -1,6 +1,19 @@
 {
     "versions": [
         {
+            "version": "0.7.0.m3",
+            "requiredVersion": "0.6.1",
+            "phase": "beta",
+            "final": true,
+            "released": "2026-09-13",
+            "changes": [
+                {
+                    "type": "UI",
+                    "summary": "Auto-scavenge also stops once the sector is scavenged past the reveal threshold and its resources row reads (None): there is nothing left to find, so no more stamina goes into it"
+                }
+            ]
+        },
+        {
             "version": "0.7.0.m2",
             "requiredVersion": "0.6.1",
             "phase": "beta",

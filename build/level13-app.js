@@ -25367,10 +25367,14 @@ define([
 	'game/constants/ExplorerConstants',
 	'game/constants/LogConstants',
 	'game/constants/PlayerActionConstants',
+	'game/constants/ExplorationConstants',
+	'game/nodes/PlayerLocationNode',
+	'game/components/sector/SectorFeaturesComponent',
+	'game/components/sector/SectorStatusComponent',
 	'game/nodes/player/PlayerStatsNode',
 	'game/nodes/PlayerPositionNode',
 	'game/components/player/ExplorersComponent',
-], function (Ash, GameGlobals, GlobalSignals, ExplorerConstants, LogConstants, PlayerActionConstants, PlayerStatsNode, PlayerPositionNode, ExplorersComponent) {
+], function (Ash, GameGlobals, GlobalSignals, ExplorerConstants, LogConstants, PlayerActionConstants, ExplorationConstants, PlayerLocationNode, SectorFeaturesComponent, SectorStatusComponent, PlayerStatsNode, PlayerPositionNode, ExplorersComponent) {
 
 	let AutoScavengeSystem = Ash.System.extend({
 
@@ -25378,6 +25382,7 @@ define([
 
 		playerStatsNodes: null,
 		playerPosNodes: null,
+		playerLocationNodes: null,
 
 		constructor: function () { },
 
@@ -25385,6 +25390,7 @@ define([
 			this.engine = engine;
 			this.playerStatsNodes = engine.getNodeList(PlayerStatsNode);
 			this.playerPosNodes = engine.getNodeList(PlayerPositionNode);
+			this.playerLocationNodes = engine.getNodeList(PlayerLocationNode);
 			GlobalSignals.add(this, GlobalSignals.toggleAutoScavengeSignal, this.toggle);
 			GlobalSignals.add(this, GlobalSignals.explorersChangedSignal, this.checkAvailable);
 			GlobalSignals.add(this, GlobalSignals.playerEnteredCampSignal, this.checkAvailable);
@@ -25395,6 +25401,7 @@ define([
 			GlobalSignals.removeAll(this);
 			this.playerStatsNodes = null;
 			this.playerPosNodes = null;
+			this.playerLocationNodes = null;
 			this.engine = null;
 		},
 
@@ -25405,6 +25412,13 @@ define([
 
 			if (!this.isAvailable()) {
 				this.stop("Auto-scavenge stopped.");
+				return;
+			}
+
+			// the sector has shown its hand: past the reveal threshold the resources
+			// row reads "(None)", so more scavenging here is stamina for nothing
+			if (this.isSectorKnownEmpty()) {
+				this.stop("Auto-scavenge stopped: nothing to find here.");
 				return;
 			}
 
@@ -25437,6 +25451,20 @@ define([
 				if (party[i].abilityType == ExplorerConstants.abilityType.AUTO_SCAVENGE) return true;
 			}
 			return false;
+		},
+
+		// the same rule UIOutLevelSystem.getResourcesFoundText uses to print "(None)":
+		// no resource known here, the sector scavenged to the reveal threshold, and
+		// nothing scavengeable in it at all
+		isSectorKnownEmpty: function () {
+			if (!this.playerLocationNodes || !this.playerLocationNodes.head) return false;
+			let sector = this.playerLocationNodes.head.entity;
+			let features = sector.get(SectorFeaturesComponent);
+			let status = sector.get(SectorStatusComponent);
+			if (!features || !status) return false;
+			if (GameGlobals.sectorHelper.getLocationKnownResources(sector).length > 0) return false;
+			if (status.getScavengedPercent() < ExplorationConstants.THRESHOLD_SCAVENGED_PERCENT_REVEAL_NO_RESOURCES) return false;
+			return features.resourcesScavengable.getTotal() <= 0;
 		},
 
 		toggle: function () {
