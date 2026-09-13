@@ -4,8 +4,9 @@
 // starts a scavenge every time the scavenge cooldown for the current sector
 // ends. It waits while a popup is open, the player is busy or an action is
 // still running; it turns itself off when the ability leaves the party, the
-// player enters a camp, or scavenging is no longer possible once the cooldown
-// is over (no stamina, sector picked clean, no vision, fainted).
+// player enters a camp, a fight starts, a scavenge ends in an injury, or
+// scavenging is no longer possible once the cooldown is over (no stamina,
+// sector picked clean, no vision, fainted).
 //
 // The on/off flag lives in gameState.uiStatus.isAutoScavenging so that
 // PlayerActionFunctions.scavenge can skip the result popup. GameState resets
@@ -44,6 +45,8 @@ define([
 			GlobalSignals.add(this, GlobalSignals.toggleAutoScavengeSignal, this.toggle);
 			GlobalSignals.add(this, GlobalSignals.explorersChangedSignal, this.checkAvailable);
 			GlobalSignals.add(this, GlobalSignals.playerEnteredCampSignal, this.checkAvailable);
+			GlobalSignals.add(this, GlobalSignals.fightStartedSignal, this.onFightStarted);
+			GlobalSignals.add(this, GlobalSignals.actionRewardsCollectedSignal, this.onRewardsCollected);
 			GlobalSignals.add(this, GlobalSignals.gameResetSignal, this.onGameReset);
 		},
 
@@ -72,7 +75,8 @@ define([
 				return;
 			}
 
-			// a full bag would turn every find into a leave-something-behind popup
+			// a bag with less than one unit of room would turn every find into a
+			// leave-something-behind popup
 			if (this.isBagFull()) {
 				this.stop("Auto-scavenge stopped: the bag is full.");
 				return;
@@ -129,7 +133,7 @@ define([
 			if (!nodes || !nodes.head) return false;
 			let bag = nodes.head.bag;
 			if (!bag || !bag.totalCapacity) return false;
-			return bag.usedCapacity >= bag.totalCapacity;
+			return bag.totalCapacity - bag.usedCapacity < 1;
 		},
 
 		toggle: function () {
@@ -151,6 +155,23 @@ define([
 			if (!this.isActive()) return;
 			this.setActive(false);
 			if (message) GameGlobals.playerHelper.addLogMessage(LogConstants.getUniqueID(), message);
+		},
+
+		// the fight itself still runs; auto mode is off once it is over
+		onFightStarted: function () {
+			this.stop("Auto-scavenge stopped: got into a fight.");
+		},
+
+		// rewards are the ResultVO the player just collected (popup or flyout)
+		onRewardsCollected: function (rewards) {
+			if (!this.isActive()) return;
+			if (this.hasInjury(rewards)) this.stop("Auto-scavenge stopped: injured.");
+		},
+
+		hasInjury: function (rewards) {
+			if (!rewards) return false;
+			if (rewards.gainedExplorerInjuries && rewards.gainedExplorerInjuries.length > 0) return true;
+			return typeof rewards.getGainedInjuries === "function" && rewards.getGainedInjuries().length > 0;
 		},
 
 		checkAvailable: function () {

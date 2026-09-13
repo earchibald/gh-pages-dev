@@ -1,6 +1,23 @@
 {
     "versions": [
         {
+            "version": "0.7.0.m5",
+            "requiredVersion": "0.6.1",
+            "phase": "beta",
+            "final": true,
+            "released": "2026-09-13",
+            "changes": [
+                {
+                    "type": "UI",
+                    "summary": "Auto-scavenge stops when a fight starts or a scavenge ends in an injury"
+                },
+                {
+                    "type": "UI",
+                    "summary": "Auto-scavenge treats the bag as full when less than one unit of capacity remains"
+                }
+            ]
+        },
+        {
             "version": "0.7.0.m4",
             "requiredVersion": "0.6.1",
             "phase": "beta",

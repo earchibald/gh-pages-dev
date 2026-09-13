@@ -12,7 +12,7 @@
 | Hotkey | Shift-N, scoped to the out tab, listed as "Auto-scavenge". The button shows the ⇧N badge. |
 | Lit state | Class `selected` on the button while auto mode is on. |
 | Behaviour | On: if scavenge is available now, scavenge, then stay on. While on, every tick: wait if a popup is open, the player is busy, or the scavenge cooldown is running; when the cooldown ends, scavenge again. |
-| Stops | Player presses the button or Shift-N; the ability leaves the party; the player enters a camp; `checkAvailability("scavenge")` fails once the cooldown is over (stamina, sector depleted, no vision, fainted). A log line says why. |
+| Stops | Player presses the button or Shift-N; the ability leaves the party; the player enters a camp; a fight starts (any outcome); a scavenge injures the player or an explorer; less than one unit of bag capacity remains; `checkAvailability("scavenge")` fails once the cooldown is over (stamina, sector depleted, no vision, fainted). A log line says why. |
 | Result popups | Auto-mode scavenges skip the result popup unless the rewards force one (bag full, special finds). The pause on a popup does not turn auto off. |
 | State | `gameState.uiStatus.isAutoScavenging`. It is reset to false on load, so the mode never survives a reload. |
 | Save format | Unchanged. An explorer with the new ability is an ordinary `ExplorerVO` with a new `abilityType` string. Older builds load it and treat the type as a scout with no bonus. |

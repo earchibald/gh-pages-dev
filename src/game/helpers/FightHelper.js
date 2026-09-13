@@ -117,6 +117,7 @@ define([
 			this.initFight(action);
 			
 			GameGlobals.uiFunctions.showFight();
+			GlobalSignals.fightStartedSignal.dispatch(action);
 		},
 
 		hasEnemiesCurrentLocation: function (action) {

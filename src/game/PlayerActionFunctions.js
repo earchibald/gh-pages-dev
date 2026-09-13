@@ -1502,7 +1502,7 @@ define(['ash',
 					playerActionFunctions.forceTabUpdate();
 				}
 				GlobalSignals.inventoryChangedSignal.dispatch();
-				GlobalSignals.actionRewardsCollectedSignal.dispatch();
+				GlobalSignals.actionRewardsCollectedSignal.dispatch(rewards);
 			};
 			
 			GameGlobals.playerActionResultsHelper.preCollectRewards(rewards);

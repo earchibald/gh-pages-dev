@@ -73,6 +73,7 @@ define(['ash',], function (Ash) {
 		toggleAutoScavengeSignal: new Ash.Signals.Signal(),
 		autoScavengeChangedSignal: new Ash.Signals.Signal(),
 		storageCapacityChangedSignal: new Ash.Signals.Signal(),
+		fightStartedSignal: new Ash.Signals.Signal(),
 		fightEndedSignal: new Ash.Signals.Signal(),
 		workersAssignedSignal: new Ash.Signals.Signal(),
 		featureUsedSignal: new Ash.Signals.Signal(),
