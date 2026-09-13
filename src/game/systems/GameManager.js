@@ -486,6 +486,13 @@ define([
 			if (!GameGlobals.changeLogHelper.isOlderMajorMinor(saveVersion, currentVersion)) return;
 			saveSystem.saveDataToSlot(GameConstants.SAVE_SLOT_PREUPDATE, compressed);
 			GameGlobals.preUpdateBackup = { saveVersion: saveVersion, currentVersion: currentVersion, data: compressed };
+			// the offer must survive a reload: once the game autosaves, the default slot
+			// is at the new version and this branch is never reached again
+			try {
+				localStorage.setItem(saveSystem.getStorageNamespace() + "preupdate-backup-pending", JSON.stringify({ saveVersion: saveVersion, currentVersion: currentVersion }));
+			} catch (ex) {
+				log.w("could not store pre-update backup marker: " + ex);
+			}
 			log.i("Kept pre-update backup of save version " + saveVersion + " before loading in " + currentVersion);
 		},
 

@@ -1,6 +1,23 @@
 {
     "versions": [
         {
+            "version": "0.7.0.m2",
+            "requiredVersion": "0.6.1",
+            "phase": "beta",
+            "final": true,
+            "released": "2026-09-13",
+            "changes": [
+                {
+                    "type": "BUGFIX",
+                    "summary": "A 0.7.0 save no longer raises the 'incompatible version' restart prompt on every load: the version check compared each digit on its own, so 0.7.0 counted as older than 0.6.1"
+                },
+                {
+                    "type": "BUGFIX",
+                    "summary": "The 'Game updated' backup offer could appear under the loading screen where nothing in it could be tapped; it now waits for the game to be shown, closes itself when a restart begins, sits above the loading layer, and comes back after a reload until Continue is pressed"
+                }
+            ]
+        },
+        {
             "version": "0.7.0.m1",
             "requiredVersion": "0.6.1",
             "phase": "beta",

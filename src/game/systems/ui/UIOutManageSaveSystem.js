@@ -24,6 +24,8 @@ function (Ash, UIList, FileUtils, GameGlobals, GlobalSignals, GameConstants, UIC
 			GlobalSignals.add(this, GlobalSignals.popupOpenedSignal, this.onPopupOpened);
 			GlobalSignals.add(this, GlobalSignals.gameShownSignal, this.tryShowBackupPopup);
 			GlobalSignals.add(this, GlobalSignals.popupClosedSignal, this.tryShowBackupPopup);
+			GlobalSignals.add(this, GlobalSignals.slowUpdateSignal, this.tryShowBackupPopup);
+			GlobalSignals.add(this, GlobalSignals.restartGameSignal, this.onRestartGame);
 		},
 
 		removeFromEngine: function (engine) {
@@ -80,7 +82,7 @@ function (Ash, UIList, FileUtils, GameGlobals, GlobalSignals, GameConstants, UIC
 			});
 			$("#close-save-backup-popup").click(function () {
 				GlobalSignals.triggerSoundSignal.dispatch(UIConstants.soundTriggerIDs.buttonClicked);
-				GameGlobals.uiFunctions.popupManager.closePopup("save-backup-popup");
+				system.onBackupPopupContinue();
 			});
 			$("#close-manage-save-popup").click(function (e) {
 				GlobalSignals.triggerSoundSignal.dispatch(UIConstants.soundTriggerIDs.buttonClicked);
@@ -551,46 +553,79 @@ function (Ash, UIList, FileUtils, GameGlobals, GlobalSignals, GameConstants, UIC
 		},
 
 		// PRE-UPDATE BACKUP
-		// GameManager.keepPreUpdateBackup leaves the untouched save text in
-		// GameGlobals.preUpdateBackup when a save from an older major.minor is loaded.
-		// Offer a copy and a download once per build major.minor. Popups do not
-		// stack, so this waits for the game to be shown and for any open popup to
-		// close before it takes its turn.
+		// GameManager.keepPreUpdateBackup writes the untouched save to the preupdate
+		// slot and leaves a pending marker when a save from an older major.minor is
+		// loaded. Offer a copy and a download until the player presses Continue: the
+		// marker, not the showing, ends the offer, so a reload re-offers it.
+		// The popup is an ingame popup (z-index 16) and the loading screen sits above
+		// it at 20 with a translucent background, so a popup raised while the game
+		// is hidden or a restart is running is visible but cannot be clicked. Wait
+		// for the game to be shown and settled; a restart closes the popup and the
+		// marker brings it back afterwards.
 
-		getBackupShownStorageKey: function () {
-			return this.getSaveSystem().getStorageNamespace() + "preupdate-backup-shown";
+		getBackupPendingStorageKey: function () {
+			return this.getSaveSystem().getStorageNamespace() + "preupdate-backup-pending";
 		},
 
-		getMajorMinor: function (version) {
-			let digits = GameGlobals.changeLogHelper.getVersionDigits(version || "");
-			return digits.major + "." + digits.minor;
+		getPendingBackup: function () {
+			try {
+				let raw = localStorage.getItem(this.getBackupPendingStorageKey());
+				if (!raw) return null;
+				let marker = JSON.parse(raw);
+				let data = this.getSaveSystem().getDataFromSlot(GameConstants.SAVE_SLOT_PREUPDATE);
+				if (!data) return null;
+				return { saveVersion: marker.saveVersion, currentVersion: marker.currentVersion, data: data };
+			} catch (ex) {
+				log.w("could not read pre-update backup marker: " + ex);
+				return null;
+			}
+		},
+
+		clearPendingBackup: function () {
+			try {
+				localStorage.removeItem(this.getBackupPendingStorageKey());
+			} catch (ex) {
+				log.w("could not clear pre-update backup marker: " + ex);
+			}
+			GameGlobals.preUpdateBackup = null;
+		},
+
+		isBackupPopupOpen: function () {
+			return $("#save-backup-popup").is(":visible");
 		},
 
 		tryShowBackupPopup: function () {
-			let backup = GameGlobals.preUpdateBackup;
-			if (!backup) return;
-			if (GameGlobals.uiFunctions.popupManager.hasOpenPopup()) return;
+			if (this.isBackupPopupOpen()) return;
+			if (!GameGlobals.gameState.uiStatus.isInitialized) return;
 			if (GameGlobals.gameState.uiStatus.isHidden) return;
+			// the loading and thinking screens both sit above ingame popups
+			if ($(".loading-content").is(":visible")) return;
+			if ($(".thinking-content").is(":visible")) return;
+			if (GameGlobals.uiFunctions.popupManager.hasOpenPopup()) return;
 
-			let shownKey = this.getBackupShownStorageKey();
-			let currentMajorMinor = this.getMajorMinor(backup.currentVersion);
-			try {
-				if (localStorage.getItem(shownKey) === currentMajorMinor) {
-					GameGlobals.preUpdateBackup = null;
-					return;
-				}
-				localStorage.setItem(shownKey, currentMajorMinor);
-			} catch (ex) {
-				log.w("could not read pre-update backup flag: " + ex);
-			}
+			let backup = this.getPendingBackup();
+			if (!backup) return;
 
-			GameGlobals.preUpdateBackup = null;
 			this.backupData = backup.data;
 			this.backupVersion = backup.saveVersion;
 
 			$("#save-backup-versions").html("Save version: " + backup.saveVersion + "<br/>Current version: " + backup.currentVersion);
 			$("#textarea-save-backup").val(backup.data);
+			$("#save-backup-status").text("");
 			GameGlobals.uiFunctions.showSpecialPopup("save-backup-popup", { isMeta: true, isDismissable: true });
+		},
+
+		// Continue: the player has had the offer, do not ask again for this save
+		onBackupPopupContinue: function () {
+			this.clearPendingBackup();
+			GameGlobals.uiFunctions.popupManager.closePopup("save-backup-popup");
+		},
+
+		// a restart (import, cloud load, new game) hides the game under the loading
+		// screen; a popup left open would be under it and unclickable
+		onRestartGame: function () {
+			if (!this.isBackupPopupOpen()) return;
+			GameGlobals.uiFunctions.popupManager.closePopup("save-backup-popup");
 		},
 
 		copyBackup: function () {
