@@ -1,6 +1,27 @@
 {
     "versions": [
         {
+            "version": "0.7.0.m9",
+            "requiredVersion": "0.6.1",
+            "phase": "beta",
+            "final": true,
+            "released": "2026-09-13",
+            "changes": [
+                {
+                    "type": "FIX",
+                    "summary": "Trade partners: the OUTGOING / INCOMING / NONE AVAIL button was redrawn every frame, so a real click on Examine route could be lost"
+                },
+                {
+                    "type": "UI",
+                    "summary": "Buildings menu: an action on cooldown says Cooldown and the time left, even while another action is running"
+                },
+                {
+                    "type": "DEV",
+                    "summary": "Any action that completes in under half its planned duration is recorded on the console and in gameState.earlyActionCompletions"
+                }
+            ]
+        },
+        {
             "version": "0.7.0.m8",
             "requiredVersion": "0.6.1",
             "phase": "beta",

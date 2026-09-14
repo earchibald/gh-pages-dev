@@ -64270,9 +64270,11 @@ define([
 				let buildingName = Text.t(ImprovementConstants.getImprovementDisplayNameKey(improvementID, level));
 				let status = this.getBuildingsEntryStatus(action);
 				// a cooling-down action fails the availability check without a reason;
-				// the row says how long is left instead of looking unaffordable
+				// the row says how long is left instead of looking unaffordable. The
+				// cooldown also wins over "Busy ...": while another action runs, the
+				// cooldown is the number the player is actually waiting on
 				let cooldownLeft = status.available ? 0 : GameGlobals.playerActionsHelper.getCooldownForCurrentLocation(action);
-				let isCooldown = !status.available && status.reqsMet && cooldownLeft > 0;
+				let isCooldown = !status.available && (status.reqsMet || status.isBusy) && cooldownLeft > 0;
 				let reason = status.reason;
 				if (isCooldown) reason = "Cooldown " + UIConstants.getTimeToNum(cooldownLeft);
 				result.push({
@@ -64342,7 +64344,7 @@ define([
 				return $content;
 			}
 
-			let badge = entry.available ? "available" : entry.isBusy ? "busy" : entry.isCooldown ? "cooldown" : entry.reason ? entry.reason : "unaffordable";
+			let badge = entry.available ? "available" : entry.isCooldown ? "cooldown" : entry.isBusy ? "busy" : entry.reason ? entry.reason : "unaffordable";
 			if (screen == "build") {
 				addHeader(entry.name, badge);
 				addLine(ImprovementConstants.getImprovementDescription(entry.improvementID, entry.level), "chooser-tooltip-desc");
@@ -71307,7 +71309,15 @@ define([
 				let ordinal = $btn.data("partner");
 				let isOpen = $("#trade-caravans-outgoing-plan-" + ordinal).is(":visible");
 				let label = sys.getOutgoingToggleLabel(ordinal, isOpen);
-				if ($btn.html() !== label) $btn.html(label);
+				// compare against what was last written, not against .html():
+				// the browser re-serialises the span's quotes, so the strings
+				// never match and the button would be rewritten every tick,
+				// which swallows a real click (mousedown and mouseup land on
+				// different nodes)
+				if ($btn.attr("data-label") !== label) {
+					$btn.attr("data-label", label);
+					$btn.html(label);
+				}
 			});
 		},
 
@@ -77607,8 +77617,10 @@ define([
 define([
 	'ash',
 	'game/GameGlobals',
+	'game/constants/GameConstants',
+	'game/constants/PlayerActionConstants',
 	'game/nodes/PlayerActionNode',
-], function (Ash, GameGlobals, PlayerActionNode) {
+], function (Ash, GameGlobals, GameConstants, PlayerActionConstants, PlayerActionNode) {
 	var PlayerActionSystem = Ash.System.extend({
 	
 		playerActionNodes: null,
@@ -77637,6 +77649,34 @@ define([
 			}
 		},
 
+		// Diagnostic (2026-09-13): a caravan once came back within a minute of
+		// leaving on a 10 minute trip and the cause was never reproduced. Any action
+		// that completes in under half its planned duration leaves a record here,
+		// in the console and on gameState.earlyActionCompletions (last 10), so the
+		// next occurrence can be read off instead of guessed at.
+		noteEarlyCompletion: function (actionVO, now, extraUpdateTime) {
+			if (!actionVO || !actionVO.action || !actionVO.startTime) return;
+			let baseId = PlayerActionConstants.getBaseActionID(actionVO.action);
+			let planned = PlayerActionConstants.getDuration(actionVO.action, baseId);
+			if (!planned || planned <= 0) return;
+			let elapsed = (now - actionVO.startTime) / 1000;
+			if (elapsed >= planned / 2) return;
+			let record = {
+				action: actionVO.action,
+				plannedSeconds: Math.round(planned),
+				elapsedSeconds: Math.round(elapsed),
+				extraTimeThisFrame: Math.round(extraUpdateTime || 0),
+				gameSpeedCamp: GameConstants.gameSpeedCamp,
+				startedAt: new Date(actionVO.startTime).toISOString(),
+				completedAt: new Date(now).toISOString(),
+			};
+			log.w("[action-timing] early completion: " + JSON.stringify(record));
+			let list = GameGlobals.gameState.earlyActionCompletions || [];
+			list.push(record);
+			while (list.length > 10) list.shift();
+			GameGlobals.gameState.earlyActionCompletions = list;
+		},
+
 		updateNode: function (node, extraUpdateTime) {
 			// TODO handle actions that completed while offline better (correct timestamp for log message, add resources from caravans etc silently)
 
@@ -77647,6 +77687,7 @@ define([
 			let actionsToPerform = [];
 			
 			if (extraUpdateTime != 0) {
+				if (extraUpdateTime > 120) log.w("[action-timing] applying " + Math.round(extraUpdateTime) + "s of extra time to " + node.playerActions.endTimeStampList.length + " pending action(s)");
 				node.playerActions.applyExtraTime(extraUpdateTime);
 			}
 			
@@ -77667,6 +77708,7 @@ define([
 			
 			for (let i = 0; i < actionsToPerform.length; i++) {
 				let actionVO = actionsToPerform[i];
+				this.noteEarlyCompletion(actionVO, now, extraUpdateTime);
 				if (actionVO.action) {
 					let sector = GameGlobals.levelHelper.getSectorByPositionVO(actionVO.position);
 					this.playerActionFunctions.performAction(actionVO.action, actionVO.param, sector, actionVO.deductedCosts);

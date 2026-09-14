@@ -356,7 +356,15 @@ define([
 				let ordinal = $btn.data("partner");
 				let isOpen = $("#trade-caravans-outgoing-plan-" + ordinal).is(":visible");
 				let label = sys.getOutgoingToggleLabel(ordinal, isOpen);
-				if ($btn.html() !== label) $btn.html(label);
+				// compare against what was last written, not against .html():
+				// the browser re-serialises the span's quotes, so the strings
+				// never match and the button would be rewritten every tick,
+				// which swallows a real click (mousedown and mouseup land on
+				// different nodes)
+				if ($btn.attr("data-label") !== label) {
+					$btn.attr("data-label", label);
+					$btn.html(label);
+				}
 			});
 		},
 

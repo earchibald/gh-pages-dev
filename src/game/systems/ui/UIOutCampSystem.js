@@ -1044,9 +1044,11 @@
 				let buildingName = Text.t(ImprovementConstants.getImprovementDisplayNameKey(improvementID, level));
 				let status = this.getBuildingsEntryStatus(action);
 				// a cooling-down action fails the availability check without a reason;
-				// the row says how long is left instead of looking unaffordable
+				// the row says how long is left instead of looking unaffordable. The
+				// cooldown also wins over "Busy ...": while another action runs, the
+				// cooldown is the number the player is actually waiting on
 				let cooldownLeft = status.available ? 0 : GameGlobals.playerActionsHelper.getCooldownForCurrentLocation(action);
-				let isCooldown = !status.available && status.reqsMet && cooldownLeft > 0;
+				let isCooldown = !status.available && (status.reqsMet || status.isBusy) && cooldownLeft > 0;
 				let reason = status.reason;
 				if (isCooldown) reason = "Cooldown " + UIConstants.getTimeToNum(cooldownLeft);
 				result.push({
@@ -1116,7 +1118,7 @@
 				return $content;
 			}
 
-			let badge = entry.available ? "available" : entry.isBusy ? "busy" : entry.isCooldown ? "cooldown" : entry.reason ? entry.reason : "unaffordable";
+			let badge = entry.available ? "available" : entry.isCooldown ? "cooldown" : entry.isBusy ? "busy" : entry.reason ? entry.reason : "unaffordable";
 			if (screen == "build") {
 				addHeader(entry.name, badge);
 				addLine(ImprovementConstants.getImprovementDescription(entry.improvementID, entry.level), "chooser-tooltip-desc");
