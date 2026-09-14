@@ -3193,6 +3193,10 @@ body.dark #go-popup-value {
   letter-spacing: 0.15em;
   margin: 10px 0;
 }
+body.dark #go-popup-status {
+  min-height: 1.2em;
+  margin: 0 0 10px 0;
+}
 body.dark .settings-group {
   margin: 10px 0;
 }
@@ -6358,6 +6362,10 @@ body.sunlit #go-popup-value {
   min-height: 1.2em;
   letter-spacing: 0.15em;
   margin: 10px 0;
+}
+body.sunlit #go-popup-status {
+  min-height: 1.2em;
+  margin: 0 0 10px 0;
 }
 body.sunlit .settings-group {
   margin: 10px 0;

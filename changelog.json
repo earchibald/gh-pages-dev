@@ -1,6 +1,19 @@
 {
     "versions": [
         {
+            "version": "0.7.0.m6",
+            "requiredVersion": "0.6.1",
+            "phase": "beta",
+            "final": true,
+            "released": "2026-09-13",
+            "changes": [
+                {
+                    "type": "UI",
+                    "summary": "The tribe tab's Go popup (G) shows whether the jump is ready, what it is waiting on, or how much stamina is missing"
+                }
+            ]
+        },
+        {
             "version": "0.7.0.m5",
             "requiredVersion": "0.6.1",
             "phase": "beta",

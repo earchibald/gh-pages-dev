@@ -71995,6 +71995,7 @@ define([
 	'game/GameGlobals',
 	'game/GlobalSignals',
 	'game/constants/UIConstants',
+	'game/constants/PlayerActionConstants',
 	'game/constants/CampConstants',
 	'game/constants/OccurrenceConstants',
 	'game/constants/WorldConstants',
@@ -72015,7 +72016,7 @@ define([
 	'game/components/sector/events/VisitorComponent',
 	'game/components/sector/OutgoingCaravansComponent'
 ], function (
-	Ash, Text, GameGlobals, GlobalSignals, UIConstants, CampConstants, OccurrenceConstants, WorldConstants,
+	Ash, Text, GameGlobals, GlobalSignals, UIConstants, PlayerActionConstants, CampConstants, OccurrenceConstants, WorldConstants,
 	CampNode, PlayerPositionNode, PlayerStatsNode, TribeUpgradesNode,
 	PositionComponent, ResourcesComponent, ResourceAccumulationComponent, HopeComponent, LevelComponent, SectorFeaturesComponent, SectorImprovementsComponent, RecruitComponent, TraderComponent, RaidComponent, VisitorComponent, OutgoingCaravansComponent
 ) {
@@ -72175,6 +72176,64 @@ define([
 
 		updateGoPopupValue: function () {
 			$("#go-popup-value").text(this.goPopupValue.length > 0 ? this.goPopupValue : "–");
+			this.updateGoPopupStatus();
+		},
+
+		// readiness line under the typed number: is that camp's Go button usable right
+		// now, and if not, why (busy with another action, cooldown, not enough
+		// stamina). Refreshed every tick while the popup is open so the busy
+		// countdown ticks down; the underlying button ignores clicks while disabled,
+		// so without this line an ENTER that does nothing looks like a broken key
+		getGoPopupStatus: function () {
+			let level = parseInt(this.goPopupValue, 10);
+			if (isNaN(level)) return null;
+			if (!this.playerPosNodes.head) return null;
+			let node = this.getCampNodeForLevel(level);
+			if (!node) return { isReady: false, text: "No camp on level " + level };
+			let playerLevel = this.playerPosNodes.head.position.level;
+			if (playerLevel == level) return { isReady: false, text: "You are already on level " + level };
+
+			let campOrdinal = GameGlobals.gameState.getCampOrdinal(level);
+			let action = "move_camp_global_" + campOrdinal;
+			let helper = GameGlobals.playerActionsHelper;
+
+			let reqsResult = helper.checkRequirements(action, false);
+			if (reqsResult.value < 1) {
+				return { isReady: false, text: "Waiting: " + Text.t(reqsResult.reason) };
+			}
+
+			let isLocationAction = PlayerActionConstants.isLocationAction(action);
+			let locationKey = GameGlobals.gameState.getActionLocationKey(isLocationAction, this.playerPosNodes.head.position);
+			let cooldownTotal = PlayerActionConstants.getCooldown(action);
+			let cooldownLeft = GameGlobals.gameState.getActionCooldown(action, locationKey, cooldownTotal);
+			if (cooldownLeft) {
+				return { isReady: false, text: "Waiting: cooldown " + Math.ceil(cooldownLeft) + "s" };
+			}
+
+			let costs = helper.getCosts(action) || {};
+			for (let key in costs) {
+				if (helper.checkCost(action, key) >= 1) continue;
+				let name = UIConstants.getCostDisplayName(key).toLowerCase();
+				let text = "Not enough " + name;
+				if (key == "stamina") {
+					let have = Math.floor(GameGlobals.playerHelper.getCurrentStamina());
+					let need = Math.ceil(costs[key]);
+					text += " (" + have + " / " + need + ")";
+				}
+				return { isReady: false, text: text };
+			}
+
+			return { isReady: true, text: "Ready (stamina " + Math.ceil(costs.stamina || 0) + ")" };
+		},
+
+		updateGoPopupStatus: function () {
+			let $status = $("#go-popup-status");
+			if ($status.length < 1) return;
+			let status = this.getGoPopupStatus();
+			let text = status ? status.text : "";
+			if ($status.text() != text) $status.text(text);
+			$status.toggleClass("warning", !!status && !status.isReady);
+			$status.toggleClass("go-popup-status-ready", !!status && status.isReady);
 		},
 
 		confirmGoPopup: function () {
@@ -72195,6 +72254,13 @@ define([
 				$("#go-popup-desc").text("You are already on level " + level + ".");
 				this.goPopupValue = "";
 				this.updateGoPopupValue();
+				return;
+			}
+			// a disabled Go button swallows the click, so keep the popup open and let
+			// the status line explain what the jump is waiting on
+			let status = this.getGoPopupStatus();
+			if (status && !status.isReady) {
+				this.updateGoPopupStatus();
 				return;
 			}
 			let campOrdinal = GameGlobals.gameState.getCampOrdinal(level);
@@ -72244,6 +72310,7 @@ define([
 		update: function () {
 			if (GameGlobals.gameState.uiStatus.isHidden) return;
 			this.updateBubble();
+			if (this.isGoPopupOpen) this.updateGoPopupStatus();
 		},
 
 		slowUpdate: function () {
