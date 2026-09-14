@@ -9,21 +9,42 @@ The game is in active development. It is a personal side project but has also re
 * Read about how to report bugs, suggest features, or submit fixes to the project in the [contributing guidelines](docs/CONTRIBUTING.md)
 * Chat about the game or get help on the [discussions page](https://github.com/nroutasuo/level13/discussions), the [subreddit](https://www.reddit.com/r/level13/), or the [Discord server](https://discord.gg/BzMbATyKph)
 
-## Mobile Port (this branch)
+## Mobile Port and Release Pipeline (fork branches)
 
-This branch (`gh-pages-mobile`) is a mobile port of the game. It plays at
-phone widths with full feature parity: tap-to-open info callouts,
-long-press action previews, touch pan and pinch zoom on maps, a
-scrollable tab bar, a log drawer, and touch-sized controls.
+This fork is a mobile port of the game. It plays at phone widths with full
+feature parity: tap-to-open info callouts, long-press action previews, touch
+pan and pinch zoom on maps, a scrollable tab bar, a log drawer, and
+touch-sized controls. Design notes: `docs/superpowers/specs/2026-08-02-mobile-port-design.md`.
 
-* Play the mobile port at <https://earchibald.github.io/level13-mobile/>
-* Design notes: `docs/superpowers/specs/2026-08-02-mobile-port-design.md`
+The published branches form a promotion chain. Every branch carries the same
+tree and the same deploy workflow, so each promotion is a fast-forward. The
+site path is the hosting repo's name.
 
-Publishing: the deploy workflow travels with this branch and only runs in
-the hosting repo. To publish an update, push the branch to both remotes:
+| Branch | Hosting repo | Site | Dev flags | How changes arrive |
+|---|---|---|---|---|
+| `gh-pages-agent-test` | earchibald/gh-pages-agent-test | <https://earchibald.github.io/gh-pages-agent-test/> | on | the agent commits here; humans test on `./serve.sh` (localhost:8414) |
+| `gh-pages-dev` | earchibald/gh-pages-dev | <https://earchibald.github.io/gh-pages-dev/> | on | fast-forward from `gh-pages-agent-test` once approved, no PR |
+| `gh-pages-stage` | earchibald/gh-pages-stage and earchibald/level13-mobile | <https://earchibald.github.io/gh-pages-stage/> and <https://earchibald.github.io/level13-mobile/> | off | PR from `gh-pages-dev` |
+| `gh-pages` | earchibald/level13 | <https://earchibald.github.io/level13/> | off | PR from `gh-pages-stage`, which may bundle several dev PRs |
 
-    git push origin gh-pages-mobile
-    git push mobile  gh-pages-mobile   # earchibald/level13-mobile -> deploys
+Emergency patches may land directly on `gh-pages-stage` or any branch below
+it, never directly on `gh-pages`. `gh-pages-mobile` is retired: it publishes
+nowhere, and `gh-pages-stage` serves its old `/level13-mobile` path so player
+saves there (namespaced by path) keep working.
+
+Publishing: the workflow only deploys in a branch's hosting repo, so push the
+branch to `origin` (earchibald/level13, source of truth, deploys nothing) and
+then to its hosting remote(s):
+
+    git push origin gh-pages-agent-test && git push agent gh-pages-agent-test
+    git push origin gh-pages-dev        && git push dev   gh-pages-dev
+    git push origin gh-pages-stage      && git push stage gh-pages-stage && git push mobile gh-pages-stage
+    git push origin gh-pages                                    # prod, after the PR merges
+
+Bump the fork version (`0.7.0.mN` in `changelog.json`, `urlArgs` in
+`src/config.js`, the `?v=` CSS links in `index.html` and `changelog.html`, and
+`CACHE_VERSION` in `sw.js`) in the same commit as a change, so a deploy can be
+told apart from a cached page.
 
 ## Game Overview
 

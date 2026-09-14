@@ -33,14 +33,25 @@ define( function () {
 		
 		gameURL: window.location.origin + window.location.pathname.replace(/\/$/, ""),
 
-		// Dev functions belong to local work and to nothing else. The candidate at
-		// earchibald.github.io/level13-mobile used to switch them on from its path,
-		// but a candidate that plays differently from the release at /level13 is not
-		// testing what ships, so both deployments now run without them.
+		// Dev functions belong to local work and to the two lowest deployments.
+		// The site path is the hosting repo's name, so the deployment is read from
+		// the first path segment: /gh-pages-agent-test and /gh-pages-dev get the
+		// flags, /gh-pages-stage, /level13-mobile and /level13 (prod) do not - a
+		// stage that plays differently from prod is not testing what ships.
 		// config.js still never needs hand-editing to get cheats while developing.
+		devFlagPathSegments: ["gh-pages-agent-test", "gh-pages-dev"],
+
 		isLocalDevBuild: function () {
 			let host = window.location.hostname;
-			return host === "localhost" || host === "127.0.0.1" || host === "";
+			if (host === "localhost" || host === "127.0.0.1" || host === "") return true;
+			let segment = "";
+			try {
+				let parts = window.location.pathname.split("/").filter(part => part.length > 0);
+				if (parts.length > 0) segment = parts[0];
+			} catch (ex) {
+				segment = "";
+			}
+			return this.devFlagPathSegments.indexOf(segment) >= 0;
 		},
 
 		getFeedbackLinksHTML: function () {

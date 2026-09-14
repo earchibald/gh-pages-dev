@@ -1,6 +1,19 @@
 {
     "versions": [
         {
+            "version": "0.7.0.m12",
+            "requiredVersion": "0.6.1",
+            "phase": "beta",
+            "final": true,
+            "released": "2026-09-14",
+            "changes": [
+                {
+                    "type": "CHANGE",
+                    "summary": "Release pipeline: the fork now publishes gh-pages-agent-test, gh-pages-dev and gh-pages-stage at earchibald.github.io/<branch>, and gh-pages-stage also serves the /level13-mobile site so existing saves there keep working. Developer flags (cheats, debug output) are on for the agent-test and dev sites and off for stage and prod"
+                }
+            ]
+        },
+        {
             "version": "0.7.0.m11",
             "requiredVersion": "0.6.1",
             "phase": "beta",

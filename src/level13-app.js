@@ -20,7 +20,8 @@ define([
 			// for mobile" overlay is never shown.
 			GameConstants.isMobileOverlayShown = false;
 
-			// Dev functions are on for local work and off for both deployments.
+			// Dev functions are on for local work, /gh-pages-agent-test and /gh-pages-dev,
+			// and off for stage and prod (see GameConstants.isLocalDevBuild).
 			// isDebugVersion is deliberately left alone: it changes worldgen retries and
 			// fires debugger statements, and the candidate has to behave like the release.
 			let isLocalDevBuild = GameConstants.isLocalDevBuild();

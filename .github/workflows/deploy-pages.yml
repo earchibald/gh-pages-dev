@@ -1,21 +1,30 @@
 name: Deploy to GitHub Pages
 
-# Publishes both distributions:
-#   gh-pages        in earchibald/level13        -> earchibald.github.io/level13         (RELEASE)
-#   gh-pages-mobile in earchibald/level13-mobile -> earchibald.github.io/level13-mobile  (CANDIDATE)
+# Publishes every distribution of the fork. Each branch deploys from exactly
+# one hosting repo, and the site path is the hosting repo's name:
 #
-# One file, identical on both branches. That is deliberate: the branches are
-# kept byte-identical so promoting the candidate is a fast-forward, and a
-# workflow that differed per branch would conflict on every promotion.
+#   gh-pages            in earchibald/level13             -> earchibald.github.io/level13             (PROD)
+#   gh-pages-stage      in earchibald/level13-mobile      -> earchibald.github.io/level13-mobile      (STAGE, legacy path, keeps user saves)
+#   gh-pages-stage      in earchibald/gh-pages-stage      -> earchibald.github.io/gh-pages-stage      (STAGE)
+#   gh-pages-dev        in earchibald/gh-pages-dev        -> earchibald.github.io/gh-pages-dev        (DEV, developer flags on)
+#   gh-pages-agent-test in earchibald/gh-pages-agent-test -> earchibald.github.io/gh-pages-agent-test (AGENT TEST, developer flags on)
 #
-# The pairing below is what keeps them apart. gh-pages-mobile is also pushed
-# to earchibald/level13 as the source of truth, and there it must NOT deploy -
-# otherwise the candidate would overwrite the release site at /level13.
+# gh-pages-mobile no longer publishes anywhere; gh-pages-stage took over its
+# /level13-mobile site so existing player saves (namespaced by path) survive.
 #
-# To publish:
-#   git push origin gh-pages          # release
-#   git push origin gh-pages-mobile   # source of truth, deploys nothing
-#   git push mobile gh-pages-mobile   # candidate
+# One file, identical on every branch. That is deliberate: the branches are
+# kept byte-identical so each promotion is a fast-forward, and a workflow that
+# differed per branch would conflict on every promotion.
+#
+# The pairing below is what keeps them apart. Every branch is also pushed to
+# earchibald/level13 as the source of truth, and there only gh-pages may
+# deploy - otherwise a lower branch would overwrite the prod site at /level13.
+#
+# To publish (push origin first, then the hosting repo):
+#   git push origin gh-pages-agent-test && git push agent gh-pages-agent-test
+#   git push origin gh-pages-dev        && git push dev   gh-pages-dev
+#   git push origin gh-pages-stage      && git push stage gh-pages-stage && git push mobile gh-pages-stage
+#   git push origin gh-pages                                   # prod, via PR from gh-pages-stage only
 #
 # No secrets or deploy keys: each deploy runs in its own repo with GITHUB_TOKEN.
 
@@ -23,7 +32,9 @@ on:
   push:
     branches:
       - gh-pages
-      - gh-pages-mobile
+      - gh-pages-stage
+      - gh-pages-dev
+      - gh-pages-agent-test
   workflow_dispatch:
 
 # Allow the workflow to publish to GitHub Pages.
@@ -39,11 +50,14 @@ concurrency:
 
 jobs:
   deploy:
-    # Each branch deploys from exactly one repository. Every other combination
-    # is skipped, which is how gh-pages-mobile stays harmless in earchibald/level13.
+    # Each branch deploys from its hosting repo(s) only. Every other combination
+    # is skipped, which is how the lower branches stay harmless in earchibald/level13.
     if: >-
       (github.repository == 'earchibald/level13' && github.ref_name == 'gh-pages') ||
-      (github.repository == 'earchibald/level13-mobile' && github.ref_name == 'gh-pages-mobile')
+      (github.repository == 'earchibald/level13-mobile' && github.ref_name == 'gh-pages-stage') ||
+      (github.repository == 'earchibald/gh-pages-stage' && github.ref_name == 'gh-pages-stage') ||
+      (github.repository == 'earchibald/gh-pages-dev' && github.ref_name == 'gh-pages-dev') ||
+      (github.repository == 'earchibald/gh-pages-agent-test' && github.ref_name == 'gh-pages-agent-test')
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
