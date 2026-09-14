@@ -2644,6 +2644,19 @@ body.dark .row-detail-indicator {
 body.dark .row-detail-indicator {
   color: #bbb;
 }
+body.dark .trade-route-status {
+  display: block;
+  font-size: 0.75em;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+body.dark .btn-trade-caravans-outgoing-toggle {
+  white-space: nowrap;
+}
+body.dark .trade-caravans-outgoing-status {
+  margin: 6px 0 0 0;
+}
 body.dark #trade-caravans-outgoing-list {
   list-style: none;
   padding: 0;
@@ -5813,6 +5826,19 @@ body.sunlit .row-detail-indicator {
 }
 body.sunlit .row-detail-indicator {
   color: #777;
+}
+body.sunlit .trade-route-status {
+  display: block;
+  font-size: 0.75em;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+body.sunlit .btn-trade-caravans-outgoing-toggle {
+  white-space: nowrap;
+}
+body.sunlit .trade-caravans-outgoing-status {
+  margin: 6px 0 0 0;
 }
 body.sunlit #trade-caravans-outgoing-list {
   list-style: none;

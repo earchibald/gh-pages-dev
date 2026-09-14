@@ -1,6 +1,23 @@
 {
     "versions": [
         {
+            "version": "0.7.0.m7",
+            "requiredVersion": "0.6.1",
+            "phase": "beta",
+            "final": true,
+            "released": "2026-09-13",
+            "changes": [
+                {
+                    "type": "UI",
+                    "summary": "Trade partners: once a caravan is on a route, its button reads OUTGOING or INCOMING / Examine route, and the planner explains the trip instead of showing a crossed-out Send"
+                },
+                {
+                    "type": "UI",
+                    "summary": "The caravan planner always says why a caravan cannot leave (route busy, no caravan free, too little to sell, not enough food for the journey) and refreshes the Send button on every change"
+                }
+            ]
+        },
+        {
             "version": "0.7.0.m6",
             "requiredVersion": "0.6.1",
             "phase": "beta",

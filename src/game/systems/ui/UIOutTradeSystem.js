@@ -15,9 +15,10 @@ define([
 	'game/components/sector/events/TraderComponent',
 	'game/components/sector/improvements/SectorImprovementsComponent',
 	'game/vos/ResourcesVO',
-	'game/vos/OutgoingCaravanVO'
+	'game/vos/OutgoingCaravanVO',
+	'game/constants/PlayerActionConstants'
 ], function (
-	Ash, Text, GameGlobals, GlobalSignals, TradeConstants, ItemConstants, OccurrenceConstants, UIConstants, PlayerLocationNode, ItemsNode, TribeUpgradesNode, PositionComponent, OutgoingCaravansComponent, TraderComponent, SectorImprovementsComponent, ResourcesVO, OutgoingCaravanVO
+	Ash, Text, GameGlobals, GlobalSignals, TradeConstants, ItemConstants, OccurrenceConstants, UIConstants, PlayerLocationNode, ItemsNode, TribeUpgradesNode, PositionComponent, OutgoingCaravansComponent, TraderComponent, SectorImprovementsComponent, ResourcesVO, OutgoingCaravanVO, PlayerActionConstants
 ) {
 	var UIOutTradeSystem = Ash.System.extend({
 
@@ -64,6 +65,7 @@ define([
 			if (!isActive) return;
 
 			this.updateOutgoingCaravanPrepare();
+			this.updateOutgoingToggleLabels();
 
 			this.lastShownTradingPartnersCount = this.availableTradingPartnersCount;
 
@@ -127,7 +129,7 @@ define([
 				if (sellsS.length <= 0) sellsS = "-";
 				let tdTrades = "<td>Buys: " + buysS + "<br/>Sells: " + sellsS + "</td>";
 				let toggleBtnID = "btn_send_caravan_" + partner.campOrdinal + "_toggle";
-				let btn = "<button id='" + toggleBtnID + "' class='btn-trade-caravans-outgoing-toggle'>Send caravan</button>";
+				let btn = "<button id='" + toggleBtnID + "' class='btn-trade-caravans-outgoing-toggle' data-partner='" + partner.campOrdinal + "'>" + this.getOutgoingToggleLabel(partner.campOrdinal, false) + "</button>";
 				if (totalCaravans < 1) {
 					btn = "";
 				}
@@ -174,12 +176,25 @@ define([
 				
 				sendTR += " <span class='trade-buy-value'>0</span>";
 				sendTR += "</span>";
+				sendTR += "<p class='trade-caravans-outgoing-status p-meta'></p>";
 				sendTR += "</td>";
-				sendTR += "<td class='minwidth'><button class='action btn-trade-caravans-outgoing-send' action='send_caravan_" + partner.campOrdinal + "'>Send</button></td></tr>";
+				// a route with a caravan already on it, or no caravan free to
+				// take it, is examined only: the row explains why in its
+				// status line instead of showing a crossed-out Send button
+				let canSend = availableCaravans > 0 && !this.getActiveCaravanForPartner(partner.campOrdinal);
+				if (canSend) {
+					sendTR += "<td class='minwidth'><button class='action btn-trade-caravans-outgoing-send' action='send_caravan_" + partner.campOrdinal + "'>Send</button></td>";
+				}
+				sendTR += "</tr>";
 				$("#trade-caravans-outgoing-container table").append(sendTR);
 			}
 			
-			$("#trade-caravans-outgoing-container table input").on("change", function () {
+			// re-validate the selection before the buttons refresh, so the Send
+			// button never judges a stale amount or good; the button otherwise
+			// waits for the slow update and sits crossed out meanwhile
+			var sys = this;
+			$("#trade-caravans-outgoing-container table input").on("change input", function () {
+				sys.updateOutgoingCaravanPrepare();
 				GlobalSignals.updateButtonsSignal.dispatch();
 			});
 			
@@ -192,11 +207,12 @@ define([
 				} else if ($elem.hasClass("trade-caravans-outgoing-select-sell")) {
 					GameGlobals.gameState.uiStatus.lastSelection["outoing-caravan-sell-" + traderId] = value;
 				}
+				sys.updateOutgoingCaravanPrepare();
+				GlobalSignals.updateButtonsSignal.dispatch();
 			});
 			GlobalSignals.elementCreatedSignal.dispatch();
 
 			// TODO animate transitions
-			var sys = this;
 			$(".btn-trade-caravans-outgoing-toggle").click(function () {
 				GlobalSignals.triggerSoundSignal.dispatch(UIConstants.soundTriggerIDs.buttonClicked);
 				var ordinal = $(this).attr("id").split("_")[3];
@@ -274,17 +290,121 @@ define([
 		},
 
 		hideOutgoingPlanRows: function () {
-			$(".btn-trade-caravans-outgoing-toggle").text("Send caravan");
 			GameGlobals.uiFunctions.toggle(".trade-caravans-outgoing-plan", false, true);
 			$(".trade-caravans-outgoing").toggleClass("selected", false);
+			this.updateOutgoingToggleLabels();
 		},
 
 		showOutgoingPlanRow: function (tradePartnerOrdinal) {
 			var tr = $("#trade-caravans-outgoing-plan-" + tradePartnerOrdinal);
-			$("#trade-caravans-outgoing-" + tradePartnerOrdinal + " button").text("cancel");
 			$("#trade-caravans-outgoing-" + tradePartnerOrdinal).toggleClass("selected", true);
 			GameGlobals.uiFunctions.toggle(tr, true);
 			this.initPendingCaravan(tradePartnerOrdinal);
+			this.updateOutgoingToggleLabels();
+			// validate the selection now, so the Send button does not open
+			// crossed out for the one frame before the next update
+			this.updateOutgoingCaravanPrepare();
+			GlobalSignals.updateButtonsSignal.dispatch();
+		},
+
+		// the caravan this camp currently has out on the route to the given partner, if any
+		getActiveCaravanForPartner: function (tradePartnerOrdinal) {
+			let caravansComponent = this.playerLocationNodes.head.entity.get(OutgoingCaravansComponent);
+			if (!caravansComponent) return null;
+			for (let i = 0; i < caravansComponent.outgoingCaravans.length; i++) {
+				let caravan = caravansComponent.outgoingCaravans[i];
+				if (caravan.tradePartnerOrdinal == tradePartnerOrdinal) return caravan;
+			}
+			return null;
+		},
+
+		// the trip is one action of returnDuration seconds; the first half is
+		// the way out, the second half the way back
+		getOutgoingCaravanPhase: function (caravan) {
+			let timeLeft = GameGlobals.tribeHelper.getTimeLeftForOutgoingCaravan(caravan);
+			let isOutgoing = caravan.returnDuration > 0 && timeLeft > caravan.returnDuration / 2;
+			return isOutgoing ? "OUTGOING" : "INCOMING";
+		},
+
+		getShortestOutgoingCaravanTimeLeft: function () {
+			let caravansComponent = this.playerLocationNodes.head.entity.get(OutgoingCaravansComponent);
+			if (!caravansComponent) return 0;
+			let result = -1;
+			for (let i = 0; i < caravansComponent.outgoingCaravans.length; i++) {
+				let timeLeft = GameGlobals.tribeHelper.getTimeLeftForOutgoingCaravan(caravansComponent.outgoingCaravans[i]);
+				if (result < 0 || timeLeft < result) result = timeLeft;
+			}
+			return Math.max(result, 0);
+		},
+
+		getOutgoingToggleLabel: function (tradePartnerOrdinal, isOpen) {
+			if (isOpen) return "Cancel";
+			let activeCaravan = this.getActiveCaravanForPartner(tradePartnerOrdinal);
+			if (activeCaravan) {
+				return "<span class='trade-route-status'>" + this.getOutgoingCaravanPhase(activeCaravan) + "</span>Examine route";
+			}
+			if (this.getNumOutgoingCaravansAvailable() < 1) {
+				return "<span class='trade-route-status'>NO CARAVAN</span>Examine route";
+			}
+			return "Send caravan";
+		},
+
+		updateOutgoingToggleLabels: function () {
+			let sys = this;
+			$(".btn-trade-caravans-outgoing-toggle").each(function () {
+				let $btn = $(this);
+				let ordinal = $btn.data("partner");
+				let isOpen = $("#trade-caravans-outgoing-plan-" + ordinal).is(":visible");
+				let label = sys.getOutgoingToggleLabel(ordinal, isOpen);
+				if ($btn.html() !== label) $btn.html(label);
+			});
+		},
+
+		// one plain sentence under the planner that says why the caravan
+		// cannot leave yet, or what the trip will look like when it can
+		getOutgoingPlanStatusText: function (tradePartnerOrdinal, selectedSell, selectedBuy, amountSell, amountGet, hasEnoughSellRes, ownedStorage) {
+			let partner = TradeConstants.getTradePartner(parseInt(tradePartnerOrdinal));
+			let partnerName = partner ? partner.name : "the trade partner";
+			let activeCaravan = this.getActiveCaravanForPartner(tradePartnerOrdinal);
+			if (activeCaravan) {
+				let timeLeft = GameGlobals.tribeHelper.getTimeLeftForOutgoingCaravan(activeCaravan);
+				let phase = this.getOutgoingCaravanPhase(activeCaravan);
+				let where = phase == "OUTGOING" ? "is on its way to " + partnerName : "is on its way back from " + partnerName;
+				return "Your caravan " + where + ". It returns in " + UIConstants.getTimeToNum(timeLeft) + ". You can send another when it is back.";
+			}
+			if (this.getNumOutgoingCaravansAvailable() < 1) {
+				let timeLeft = this.getShortestOutgoingCaravanTimeLeft();
+				return "All caravans are away. The next one returns in " + UIConstants.getTimeToNum(timeLeft) + ".";
+			}
+			if (!hasEnoughSellRes) {
+				return "Not enough " + selectedSell + " to trade. A caravan carries at least " + TradeConstants.MIN_OUTGOING_CARAVAN_RES + ".";
+			}
+			let foodCost = GameGlobals.playerActionsHelper.getCosts("send_caravan_" + tradePartnerOrdinal)["resource_food"] || 0;
+			let ownedFood = ownedStorage.resources.getResource(resourceNames.food);
+			if (foodCost > 0 && ownedFood < foodCost) {
+				let provisions = foodCost - (selectedSell == resourceNames.food ? amountSell : 0);
+				return "Not enough food. The crew needs " + provisions + " food for the journey" + (selectedSell == resourceNames.food ? " on top of the " + amountSell + " sold" : "") + ".";
+			}
+			if (amountGet <= 0) {
+				return "That trade is too small to bring anything back. Sell more " + selectedSell + ".";
+			}
+			// anything else the action itself objects to (the same check that
+			// crosses out the Send button), so the row never says ready while
+			// the button says no
+			let action = "send_caravan_" + tradePartnerOrdinal;
+			let reqsResult = GameGlobals.playerActionsHelper.checkRequirements(action, false);
+			if (reqsResult.value < 1) {
+				return "Cannot send: " + Text.t(reqsResult.reason) + ".";
+			}
+			if (GameGlobals.playerActionsHelper.checkCosts(action, false) < 1) {
+				return "Cannot send: not enough resources for the trade and the journey.";
+			}
+			let duration = PlayerActionConstants.getDuration(action, "send_caravan");
+			let result = "Ready to send. The caravan is away for " + UIConstants.getTimeToNum(duration) + ".";
+			if (ownedStorage.storageCapacity && amountGet > ownedStorage.storageCapacity) {
+				result += " Camp storage holds only " + ownedStorage.storageCapacity + " " + selectedBuy + ", so some is wasted.";
+			}
+			return result;
 		},
 
 		updateIncomingCaravan: function (isActive) {
@@ -439,6 +559,11 @@ define([
 			// set valid selection
 			var isValid = hasEnoughSellRes && amountSell > 0 && amountGet > 0 && isCapacityOK;
 			$(trID + " button.action").attr("data-isselectionvalid", isValid);
+
+			let tradePartnerOrdinal = $(tr).attr("id").split("-")[4];
+			let statusText = this.getOutgoingPlanStatusText(tradePartnerOrdinal, selectedSell, selectedBuy, amountSell, amountGet, hasEnoughSellRes, ownedStorage);
+			let $status = $(trID + " .trade-caravans-outgoing-status");
+			if ($status.text() !== statusText) $status.text(statusText);
 
 			if (caravansComponent.pendingCaravan) {
 				caravansComponent.pendingCaravan.sellGood = selectedSell;
