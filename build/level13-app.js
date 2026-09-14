@@ -72262,7 +72262,7 @@ define([
 			this.goPopupValue = "";
 			this.goPopupPendingConfirm = false;
 			this.updateGoPopupValue();
-			$("#go-popup-desc").text("Type a level number, then press ENTER.");
+			$("#go-popup-desc").text(this.getGoPopupHintText());
 			GameGlobals.uiFunctions.showSpecialPopup("go-popup", { isDismissable: true });
 			// bound at open, not when the popup becomes visible: digits typed while
 			// the popup is still fading in must land in the value, not be dropped
@@ -72289,6 +72289,12 @@ define([
 				this.updateGoPopupValue();
 				return;
 			}
+			if (code == "ArrowUp" || code == "ArrowDown") {
+				e.preventDefault();
+				if (oe.repeat && this.isGoPopupRolling()) return;
+				this.stepGoPopupLevel(code == "ArrowUp" ? 1 : -1);
+				return;
+			}
 			if (code == "Enter" || code == "NumpadEnter") {
 				e.preventDefault();
 				// closing before the fade-in marks the popup visible leaves it stuck
@@ -72309,8 +72315,76 @@ define([
 			return true;
 		},
 
-		updateGoPopupValue: function () {
-			$("#go-popup-value").text(this.goPopupValue.length > 0 ? this.goPopupValue : "–");
+		getGoPopupHintText: function () {
+			return "Type a level number or press \u2191 \u2193, then press ENTER.";
+		},
+
+		// levels that have a camp, lowest first; the arrow keys walk this list
+		getGoPopupCampLevels: function () {
+			let levels = [];
+			for (var node = this.campNodes.head; node; node = node.next) {
+				levels.push(node.entity.get(PositionComponent).level);
+			}
+			levels.sort(function (a, b) { return a - b; });
+			return levels;
+		},
+
+		// ARROW UP picks the nearest camp above the shown level, ARROW DOWN the
+		// nearest below; an empty value starts from the player's own level. The
+		// list does not wrap: at the top or bottom camp the key does nothing
+		stepGoPopupLevel: function (direction) {
+			let levels = this.getGoPopupCampLevels();
+			if (levels.length < 1) return;
+			let current = parseInt(this.goPopupValue, 10);
+			if (isNaN(current)) {
+				current = this.playerPosNodes.head ? this.playerPosNodes.head.position.level : levels[0];
+			}
+			let target = null;
+			if (direction > 0) {
+				for (let i = 0; i < levels.length; i++) {
+					if (levels[i] > current) { target = levels[i]; break; }
+				}
+			} else {
+				for (let i = levels.length - 1; i >= 0; i--) {
+					if (levels[i] < current) { target = levels[i]; break; }
+				}
+			}
+			if (target == null) return;
+			this.goPopupValue = String(target);
+			this.updateGoPopupValue(direction);
+		},
+
+		isGoPopupRolling: function () {
+			return $("#go-popup-value .go-popup-digit-out").length > 0;
+		},
+
+		// direction: 0 or undefined for a plain replace (typing), +1 / -1 for a
+		// roll. On a roll the old number slides out and the new one slides in
+		// from the side the player moved towards, like a column of floors
+		updateGoPopupValue: function (direction) {
+			let text = this.goPopupValue.length > 0 ? this.goPopupValue : "\u2013";
+			let $value = $("#go-popup-value");
+			let $current = $value.children(".go-popup-digit").not(".go-popup-digit-out");
+			if (!direction) {
+				$value.children(".go-popup-digit-out").remove();
+				if ($current.length < 1) {
+					$value.append("<span class='go-popup-digit'></span>");
+					$current = $value.children(".go-popup-digit");
+				}
+				if ($current.text() != text) $current.text(text);
+				this.updateGoPopupStatus();
+				return;
+			}
+			$value.children(".go-popup-digit-out").remove();
+			let dirClass = direction > 0 ? "go-popup-digit-up" : "go-popup-digit-down";
+			$current.removeClass("go-popup-digit-in go-popup-digit-up go-popup-digit-down");
+			$current.addClass("go-popup-digit-out " + dirClass);
+			$current.one("animationend", function () { $(this).remove(); });
+			// a hidden tab fires no animationend, so never leave the old number behind
+			setTimeout(function () { $current.remove(); }, 400);
+			let $next = $("<span class='go-popup-digit go-popup-digit-in " + dirClass + "'></span>");
+			$next.text(text);
+			$value.append($next);
 			this.updateGoPopupStatus();
 		},
 

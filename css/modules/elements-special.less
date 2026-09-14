@@ -1167,12 +1167,53 @@ body.touch #mainmap-sector-details-chips-hint {
 	min-width: 200px;
 }
 
-// the typed level number; an en dash holds the line while it is empty
+// the typed level number; an en dash holds the line while it is empty.
+// The box clips so a number can roll in from above or below (arrow keys)
 #go-popup-value {
+	position: relative;
 	font-size: 1.5em;
-	min-height: 1.2em;
+	height: 1.4em;
+	line-height: 1.4em;
 	letter-spacing: 0.15em;
 	margin: 10px 0;
+	overflow: hidden;
+}
+
+#go-popup-value .go-popup-digit {
+	display: block;
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+}
+
+// ARROW UP: the old number sinks away and the new one settles in from above,
+// like a column of floors; ARROW DOWN the reverse
+#go-popup-value .go-popup-digit-in.go-popup-digit-up { animation: go-popup-in-from-above 0.22s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+#go-popup-value .go-popup-digit-out.go-popup-digit-up { animation: go-popup-out-below 0.22s cubic-bezier(0.4, 0, 0.7, 0.4) both; }
+#go-popup-value .go-popup-digit-in.go-popup-digit-down { animation: go-popup-in-from-below 0.22s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+#go-popup-value .go-popup-digit-out.go-popup-digit-down { animation: go-popup-out-above 0.22s cubic-bezier(0.4, 0, 0.7, 0.4) both; }
+
+@keyframes go-popup-in-from-above {
+	from { transform: translateY(-80%); opacity: 0; }
+	to { transform: translateY(0); opacity: 1; }
+}
+@keyframes go-popup-out-below {
+	from { transform: translateY(0); opacity: 1; }
+	to { transform: translateY(80%); opacity: 0; }
+}
+@keyframes go-popup-in-from-below {
+	from { transform: translateY(80%); opacity: 0; }
+	to { transform: translateY(0); opacity: 1; }
+}
+@keyframes go-popup-out-above {
+	from { transform: translateY(0); opacity: 1; }
+	to { transform: translateY(-80%); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#go-popup-value .go-popup-digit-in { animation-duration: 0.01s; }
+	#go-popup-value .go-popup-digit-out { animation-duration: 0.01s; }
 }
 
 // readiness of the typed camp's Go button; the min-height keeps the popup from

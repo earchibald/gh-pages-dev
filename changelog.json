@@ -1,6 +1,19 @@
 {
     "versions": [
         {
+            "version": "0.7.0.m10",
+            "requiredVersion": "0.6.1",
+            "phase": "beta",
+            "final": true,
+            "released": "2026-09-13",
+            "changes": [
+                {
+                    "type": "UI",
+                    "summary": "Go to camp (G on the Tribe tab): the up and down arrow keys step through the levels that have a camp, and the number rolls into place; the list stops at the top and bottom camp, and typing a level still works"
+                }
+            ]
+        },
+        {
             "version": "0.7.0.m9",
             "requiredVersion": "0.6.1",
             "phase": "beta",
