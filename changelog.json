@@ -1,6 +1,19 @@
 {
     "versions": [
         {
+            "version": "0.7.0.m8",
+            "requiredVersion": "0.6.1",
+            "phase": "beta",
+            "final": true,
+            "released": "2026-09-13",
+            "changes": [
+                {
+                    "type": "UI",
+                    "summary": "Trade partners: the route button reads NONE AVAIL instead of NO CARAVAN when every caravan is away on another route"
+                }
+            ]
+        },
+        {
             "version": "0.7.0.m7",
             "requiredVersion": "0.6.1",
             "phase": "beta",

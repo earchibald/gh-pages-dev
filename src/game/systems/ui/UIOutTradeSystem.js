@@ -344,7 +344,7 @@ define([
 				return "<span class='trade-route-status'>" + this.getOutgoingCaravanPhase(activeCaravan) + "</span>Examine route";
 			}
 			if (this.getNumOutgoingCaravansAvailable() < 1) {
-				return "<span class='trade-route-status'>NO CARAVAN</span>Examine route";
+				return "<span class='trade-route-status'>NONE AVAIL</span>Examine route";
 			}
 			return "Send caravan";
 		},
