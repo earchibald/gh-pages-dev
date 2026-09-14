@@ -1,6 +1,19 @@
 {
     "versions": [
         {
+            "version": "0.7.0.m11",
+            "requiredVersion": "0.6.1",
+            "phase": "beta",
+            "final": true,
+            "released": "2026-09-14",
+            "changes": [
+                {
+                    "type": "FIX",
+                    "summary": "Trade caravans: a returning caravan is now matched to the camp that sent it. Before, when any camp's trip to a partner ended, the first camp in the list gave up its own caravan to that partner, so caravans came home to the wrong camp minutes early and the sending camp's route stayed Cannot send: Already in progress until its own timer ran out"
+                }
+            ]
+        },
+        {
             "version": "0.7.0.m10",
             "requiredVersion": "0.6.1",
             "phase": "beta",

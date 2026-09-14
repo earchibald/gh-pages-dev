@@ -296,7 +296,7 @@ define(['ash',
 				case "clear_workshop": this.clearWorkshop(param); break;
 				case "use_spring": this.useSpring(param); break;
 				case "fight_gang": this.fightGang(param); break;
-				case "send_caravan": this.sendCaravan(param); break;
+				case "send_caravan": this.sendCaravan(param, sector); break;
 				case "trade_with_caravan": this.tradeWithCaravan(); break;
 				case "recruit_explorer": this.recruitExplorer(param); break;
 				case "start_explorer_dialogue": this.startExplorerDialogue(param); break;
@@ -1543,27 +1543,53 @@ define(['ash',
 			}
 		},
 
-		sendCaravan: function (tradePartnerOrdinal) {
+		// originSector: the camp the completed send_caravan action started from
+		// (the action's saved position). Several camps can have a caravan out to
+		// the same partner at once, so the caravan is looked up in that camp
+		// first; without this the first camp in node order gave up its caravan
+		// whenever ANY camp's trip to the same partner ended, so caravans came
+		// back to the wrong camp minutes early and the sending camp kept its
+		// "already in progress" action until its own timer ran out.
+		sendCaravan: function (tradePartnerOrdinal, originSector) {
 			var campOutgoingCaravansComponent;
 			var campSector;
 			var caravan;
 			var caravanI;
 			
-			// TODO fix this so that if several camps send a caravan to the same destination they don't get mixed
-			// make a proper system for outgoing caravans instead of relying on action duration & action params
-			for (var node = this.campNodes.head; node; node = node.next) {
-				campOutgoingCaravansComponent = node.entity.get(OutgoingCaravansComponent);
-				for (let i in campOutgoingCaravansComponent.outgoingCaravans) {
-					var caravanVO = campOutgoingCaravansComponent.outgoingCaravans[i];
-					if (caravanVO.tradePartnerOrdinal == tradePartnerOrdinal) {
-						campSector = node.entity;
-						caravan = caravanVO;
-						caravanI = i;
-						break;
+			if (originSector) {
+				let originCaravans = originSector.get(OutgoingCaravansComponent);
+				if (originCaravans) {
+					for (let i = 0; i < originCaravans.outgoingCaravans.length; i++) {
+						let caravanVO = originCaravans.outgoingCaravans[i];
+						if (caravanVO.tradePartnerOrdinal == tradePartnerOrdinal) {
+							campSector = originSector;
+							campOutgoingCaravansComponent = originCaravans;
+							caravan = caravanVO;
+							caravanI = i;
+							break;
+						}
 					}
 				}
-				if (campSector && caravan) {
-					break;
+			}
+			
+			// fallback for saves whose caravans and actions were already mixed up
+			// between camps: any camp with a caravan out to this partner
+			if (!campSector || !caravan) {
+				if (originSector) log.w("send_caravan: no caravan to partner " + tradePartnerOrdinal + " in the origin camp, falling back to any camp");
+				for (var node = this.campNodes.head; node; node = node.next) {
+					campOutgoingCaravansComponent = node.entity.get(OutgoingCaravansComponent);
+					for (let i = 0; i < campOutgoingCaravansComponent.outgoingCaravans.length; i++) {
+						var caravanVO = campOutgoingCaravansComponent.outgoingCaravans[i];
+						if (caravanVO.tradePartnerOrdinal == tradePartnerOrdinal) {
+							campSector = node.entity;
+							caravan = caravanVO;
+							caravanI = i;
+							break;
+						}
+					}
+					if (campSector && caravan) {
+						break;
+					}
 				}
 			}
 
